@@ -10,8 +10,10 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class VulnadoApplicationTests {
 
 	@Test
+	@Test
 	public void contextLoads() {
-	}
+    // This test ensures that the Spring application context loads successfully.
 
+}
 }
 
