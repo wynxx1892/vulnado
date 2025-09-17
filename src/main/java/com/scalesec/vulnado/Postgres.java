@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.util.UUID;
 
 public class Postgres {
+private Postgres() {}
 
     public static Connection connection() {
         try {
@@ -22,15 +23,15 @@ public class Postgres {
             return DriverManager.getConnection(url,
                     System.getenv("PGUSER"), System.getenv("PGPASSWORD"));
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println(e.getClass().getName()+": "+e.getMessage());
+            LOGGER.error("An error occurred", e);
+            LOGGER.error("Error: " + e.getClass().getName() + " " + e.getMessage());
             System.exit(1);
         }
         return null;
     }
     public static void setup(){
         try {
-            System.out.println("Setting up Database...");
+            LOGGER.info("Setting up Database...");
             Connection c = connection();
             Statement stmt = c.createStatement();
 
@@ -53,7 +54,7 @@ public class Postgres {
             insertComment("alice", "OMG so cute!");
             c.close();
         } catch (Exception e) {
-            System.out.println(e);
+            LOGGER.error("An error occurred", e);
             System.exit(1);
         }
     }
@@ -64,7 +65,7 @@ public class Postgres {
         try {
 
             // Static getInstance method is called with hashing MD5
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
 
             // digest() method is called to calculate message digest
             //  of an input digest() return array of byte
@@ -83,7 +84,7 @@ public class Postgres {
 
         // For specifying wrong message digest algorithms
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("An error occurred", e);
         }
     }
 
@@ -97,7 +98,7 @@ public class Postgres {
           pStatement.setString(3, md5(password));
           pStatement.executeUpdate();
        } catch(Exception e) {
-         e.printStackTrace();
+         LOGGER.error("An error occurred", e);
        }
     }
 
@@ -111,7 +112,8 @@ public class Postgres {
             pStatement.setString(3, body);
             pStatement.executeUpdate();
         } catch(Exception e) {
-            e.printStackTrace();
+            LOGGER.error("An error occurred", e);
         }
     }
 }
+public class CustomException extends Exception {
