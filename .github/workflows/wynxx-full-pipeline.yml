@@ -63,201 +63,201 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_ENV"
 
-      # - name: Prepare and Send to API (TestCreator)
-      #   id: send_api
-      #   run: |
-      #     FILES_ARRAY=()
-      #     while IFS= read -r FILE; do
-      #       CLASS_NAME=$(basename "$FILE" .java)
-      #       TEST_FILE="src/test/java/com/scalesec/vulnado/${CLASS_NAME}Tests.java"
-      #       FILES_ARRAY+=(--form "files=@${FILE}")
-      #       if [ -f "$TEST_FILE" ]; then
-      #         FILES_ARRAY+=(--form "ExistingTests=@${TEST_FILE}")
-      #       fi
-      #     done <<< "${{ env.java_files }}"
+      - name: Prepare and Send to API (TestCreator)
+        id: send_api
+        run: |
+          FILES_ARRAY=()
+          while IFS= read -r FILE; do
+            CLASS_NAME=$(basename "$FILE" .java)
+            TEST_FILE="src/test/java/com/scalesec/vulnado/${CLASS_NAME}Tests.java"
+            FILES_ARRAY+=(--form "files=@${FILE}")
+            if [ -f "$TEST_FILE" ]; then
+              FILES_ARRAY+=(--form "ExistingTests=@${TEST_FILE}")
+            fi
+          done <<< "${{ env.java_files }}"
 
-      #     RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/test' \
-      #       --header "Authorization: Bearer ${{ env.access_token }}" \
-      #       --form "RunName=GenerateTests" \
-      #       "${FILES_ARRAY[@]}" \
-      #       --form "jobName=DemoTestCreator" \
-      #       --form "SearchPattern=*.java" \
-      #       --form "TargetExtension=java" \
-      #       --form "PromptId=TestCreator__CreateUnitTests_V1" \
-      #       --form "SourceCodeLanguage=Java" \
-      #       --form "TestType=Unit" \
-      #       --form "TestingFrameworks=MSTEST,MOQ" \
-      #       --form "Llm=${{ vars.LLM }}" \
-      #       --form "AdditionalInstructions=Generate only the source code, without any extra information")
-      #     echo "API Response: $RESPONSE"
-      #     JOB_ID=$(echo $RESPONSE)
-      #     echo "job_id=$JOB_ID" >> $GITHUB_ENV
+          RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/test' \
+            --header "Authorization: Bearer ${{ env.access_token }}" \
+            --form "RunName=GenerateTests" \
+            "${FILES_ARRAY[@]}" \
+            --form "jobName=DemoTestCreator" \
+            --form "SearchPattern=*.java" \
+            --form "TargetExtension=java" \
+            --form "PromptId=TestCreator__CreateUnitTests_V1" \
+            --form "SourceCodeLanguage=Java" \
+            --form "TestType=Unit" \
+            --form "TestingFrameworks=MSTEST,MOQ" \
+            --form "Llm=${{ vars.LLM }}" \
+            --form "AdditionalInstructions=Generate only the source code, without any extra information")
+          echo "API Response: $RESPONSE"
+          JOB_ID=$(echo $RESPONSE)
+          echo "job_id=$JOB_ID" >> $GITHUB_ENV
 
-      # - name: Monitor Job Status
-      #   id: monitor_status
-      #   run: |
-      #     JOB_ID=${{ env.job_id }}
-      #     STATUS="Pending"
-      #     while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
-      #       RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
-      #         --header "Authorization: Bearer ${{ env.access_token }}")
-      #       STATUS=$(echo $RESPONSE | jq -r '.status')
-      #       echo "Current status: $STATUS"
-      #       sleep 10
-      #     done
-      #     echo "Final status: $STATUS"
-      #     OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
+      - name: Monitor Job Status
+        id: monitor_status
+        run: |
+          JOB_ID=${{ env.job_id }}
+          STATUS="Pending"
+          while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
+            RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
+              --header "Authorization: Bearer ${{ env.access_token }}")
+            STATUS=$(echo $RESPONSE | jq -r '.status')
+            echo "Current status: $STATUS"
+            sleep 10
+          done
+          echo "Final status: $STATUS"
+          OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
 
-      #     echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
+          echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
 
-      #     {
-      #       echo "output_uris<<EOF"
-      #       echo "$OUTPUT_URIS"
-      #       echo "EOF"
-      #     } >> "$GITHUB_ENV"
+          {
+            echo "output_uris<<EOF"
+            echo "$OUTPUT_URIS"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
-      # - name: Save Generated Tests
-      #   run: |
+      - name: Save Generated Tests
+        run: |
 
-      #     OUTPUT_URIS="${{ env.output_uris }}"
-      #     while IFS= read -r uri; do
-      #       FILE_URL="https://api.aiimpact.qa.az.gcp-gft.cloud${uri}" 
-      #       FILE_CONTENT=$(curl --location "$FILE_URL" --header "Authorization: Bearer ${{ env.access_token }}")
-      #       CLASS_NAME=$(basename "$uri" .java)
-      #       TEST_FILE="src/test/java/com/scalesec/vulnado/${CLASS_NAME}Tests.java"
+          OUTPUT_URIS="${{ env.output_uris }}"
+          while IFS= read -r uri; do
+            FILE_URL="https://api.aiimpact.qa.az.gcp-gft.cloud${uri}" 
+            FILE_CONTENT=$(curl --location "$FILE_URL" --header "Authorization: Bearer ${{ env.access_token }}")
+            CLASS_NAME=$(basename "$uri" .java)
+            TEST_FILE="src/test/java/com/scalesec/vulnado/${CLASS_NAME}Tests.java"
           
-      #       mkdir -p "$(dirname "$TEST_FILE")"
-      #       echo "$FILE_CONTENT" > "$TEST_FILE"
-      #     done <<< "$OUTPUT_URIS"
+            mkdir -p "$(dirname "$TEST_FILE")"
+            echo "$FILE_CONTENT" > "$TEST_FILE"
+          done <<< "$OUTPUT_URIS"
 
-      # - name: Prepare and Send to API (DocCreator)
-      #   id: send_api2
-      #   run: |
+      - name: Prepare and Send to API (DocCreator)
+        id: send_api2
+        run: |
 
-      #     FILES_ARRAY=()
-      #     while IFS= read -r FILE; do
-      #       CLASS_NAME=$(basename "$FILE" .java)
-      #       FILES_ARRAY+=(--form "files=@${FILE}")
-      #     done <<< "${{ env.java_files }}"
+          FILES_ARRAY=()
+          while IFS= read -r FILE; do
+            CLASS_NAME=$(basename "$FILE" .java)
+            FILES_ARRAY+=(--form "files=@${FILE}")
+          done <<< "${{ env.java_files }}"
 
-      #     RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/document' \
-      #       --header "Authorization: Bearer ${{ env.access_token }}" \
-      #       --form "RunName=GenerateDocPR" \
-      #       "${FILES_ARRAY[@]}" \
-      #       --form "jobName=DemoDocCreator" \
-      #       --form "DocumentationFormat=markdown" \
-      #       --form "DiagramFormat=Mermaid" \
-      #       --form "SourceCodeLanguage=Java" \
-      #       --form "DocumentationAudience=Developer" \
-      #       --form "PromptId=DocCreator__DocumentCode_V3" \
-      #       --form "TargetExtension=md" \
-      #       --form "Llm=${{ vars.LLM }}" \
-      #       --form "AdditionalInstructions=Generate all answers in ${{ vars.LANGUAGE }} and If the code have vulnerabilities, describe all in a new # vulnerabilities section")           
-      #     echo "API Response: $RESPONSE"
-      #     JOB_ID=$(echo $RESPONSE)
-      #     echo "job_id=$JOB_ID" >> $GITHUB_ENV
+          RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/document' \
+            --header "Authorization: Bearer ${{ env.access_token }}" \
+            --form "RunName=GenerateDocPR" \
+            "${FILES_ARRAY[@]}" \
+            --form "jobName=DemoDocCreator" \
+            --form "DocumentationFormat=markdown" \
+            --form "DiagramFormat=Mermaid" \
+            --form "SourceCodeLanguage=Java" \
+            --form "DocumentationAudience=Developer" \
+            --form "PromptId=DocCreator__DocumentCode_V3" \
+            --form "TargetExtension=md" \
+            --form "Llm=${{ vars.LLM }}" \
+            --form "AdditionalInstructions=Generate all answers in ${{ vars.LANGUAGE }} and If the code have vulnerabilities, describe all in a new # vulnerabilities section")           
+          echo "API Response: $RESPONSE"
+          JOB_ID=$(echo $RESPONSE)
+          echo "job_id=$JOB_ID" >> $GITHUB_ENV
 
-      # - name: Monitor Job Status
-      #   id: monitor_status2
-      #   run: |
-      #     JOB_ID=${{ env.job_id }}
-      #     STATUS="Pending"
-      #     while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
-      #       RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
-      #         --header "Authorization: Bearer ${{ env.access_token }}")
-      #       STATUS=$(echo $RESPONSE | jq -r '.status')
-      #       echo "Current status: $STATUS"
-      #       sleep 10
-      #     done
-      #     echo "Final status: $STATUS"
-      #     OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
+      - name: Monitor Job Status
+        id: monitor_status2
+        run: |
+          JOB_ID=${{ env.job_id }}
+          STATUS="Pending"
+          while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
+            RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
+              --header "Authorization: Bearer ${{ env.access_token }}")
+            STATUS=$(echo $RESPONSE | jq -r '.status')
+            echo "Current status: $STATUS"
+            sleep 10
+          done
+          echo "Final status: $STATUS"
+          OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
 
-      #     echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
+          echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
 
-      #     {
-      #       echo "output_uris<<EOF"
-      #       echo "$OUTPUT_URIS"
-      #       echo "EOF"
-      #     } >> "$GITHUB_ENV"
+          {
+            echo "output_uris<<EOF"
+            echo "$OUTPUT_URIS"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
-      # - name: Save Generated Docs
-      #   run: |
+      - name: Save Generated Docs
+        run: |
 
-      #     OUTPUT_URIS="${{ env.output_uris }}"
+          OUTPUT_URIS="${{ env.output_uris }}"
 
-      #     while IFS= read -r uri; do
-      #       FILE_URL="https://api.aiimpact.qa.az.gcp-gft.cloud${uri}" 
-      #       FILE_CONTENT=$(curl --location "$FILE_URL" --header "Authorization: Bearer ${{ env.access_token }}")
-      #       CLASS_NAME=$(basename "$uri" | sed 's/\.java\.md$//')
-      #       DOC_FILE="wiki/src/main/java/com/scalesec/vulnado/${CLASS_NAME}Docs.md"
+          while IFS= read -r uri; do
+            FILE_URL="https://api.aiimpact.qa.az.gcp-gft.cloud${uri}" 
+            FILE_CONTENT=$(curl --location "$FILE_URL" --header "Authorization: Bearer ${{ env.access_token }}")
+            CLASS_NAME=$(basename "$uri" | sed 's/\.java\.md$//')
+            DOC_FILE="wiki/src/main/java/com/scalesec/vulnado/${CLASS_NAME}Docs.md"
           
-      #       mkdir -p "$(dirname "$DOC_FILE")"
-      #       echo "$FILE_CONTENT" > "$DOC_FILE"
-      #     done <<< "$OUTPUT_URIS"
+            mkdir -p "$(dirname "$DOC_FILE")"
+            echo "$FILE_CONTENT" > "$DOC_FILE"
+          done <<< "$OUTPUT_URIS"
 
-      # - name: Commit and Push Documenter and Tests
-      #   run: |
-      #     git config --global user.name 'gft-ai-impact[bot]'
-      #     git config --global user.email 'ai-impact[bot]@gft.com'
-      #     git add .
-      #     git commit -m "Add generated Documentations and Unit Tests" || echo "No changes to commit"
+      - name: Commit and Push Documenter and Tests
+        run: |
+          git config --global user.name 'gft-ai-impact[bot]'
+          git config --global user.email 'ai-impact[bot]@gft.com'
+          git add .
+          git commit -m "Add generated Documentations and Unit Tests" || echo "No changes to commit"
 
-      # - name: Create Pull Request
-      #   id: create-pr
-      #   uses: peter-evans/create-pull-request@v5
-      #   with:
-      #     commit-message: "AI Impact documentation and Unit Tests"
-      #     title: "Documentation and Unit Tests created by IA Impact"
-      #     body: "Pull request created by IA Impact CodeDocumenter and CodeTester."
-      #     branch: "tester-by-ai"
-      #     delete-branch: true
-      #     add-paths: |
-      #         ./**/*.java
-      #         ./**/*.md
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     labels: "auto-generated, tests"
-      #     draft: false
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "AI Impact documentation and Unit Tests"
+          title: "Documentation and Unit Tests created by IA Impact"
+          body: "Pull request created by IA Impact CodeDocumenter and CodeTester."
+          branch: "tester-by-ai"
+          delete-branch: true
+          add-paths: |
+              ./**/*.java
+              ./**/*.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+          labels: "auto-generated, tests"
+          draft: false
 
-      # - name: Prepare and Send for Code Review
-      #   id: send_code_review
-      #   run: |
-      #     echo "Repository: ${{github.repository}}"
-      #     RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/review' \
-      #       --header "Authorization: Bearer ${{ env.access_token }}" \
-      #       --form 'RunName="CodeReview"' \
-      #       --form 'jobName="DemoCodeReviewer"' \
-      #       --form 'PromptId="CodeReviewer__CodeReviewer_V1_Conventions"' \
-      #       --form 'Llm="${{ vars.LLM }}"' \
-      #       --form 'PullRequestId="${{ steps.create-pr.outputs.pull-request-number }}"' \
-      #       --form 'RepoName="${{github.repository}}"' \
-      #       --form 'AdditionalInstructions=""' \
-      #       --form 'Conventions="Header,Description,Summary,Recomendations,VulnExplanation"') 
-      #     echo "API Response: $RESPONSE"
-      #     JOB_ID=$(echo $RESPONSE)
-      #     echo "job_id=$JOB_ID" >> $GITHUB_ENV
+      - name: Prepare and Send for Code Review
+        id: send_code_review
+        run: |
+          echo "Repository: ${{github.repository}}"
+          RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/review' \
+            --header "Authorization: Bearer ${{ env.access_token }}" \
+            --form 'RunName="CodeReview"' \
+            --form 'jobName="DemoCodeReviewer"' \
+            --form 'PromptId="CodeReviewer__CodeReviewer_V1_Conventions"' \
+            --form 'Llm="${{ vars.LLM }}"' \
+            --form 'PullRequestId="${{ steps.create-pr.outputs.pull-request-number }}"' \
+            --form 'RepoName="${{github.repository}}"' \
+            --form 'AdditionalInstructions=""' \
+            --form 'Conventions="Header,Description,Summary,Recomendations,VulnExplanation"') 
+          echo "API Response: $RESPONSE"
+          JOB_ID=$(echo $RESPONSE)
+          echo "job_id=$JOB_ID" >> $GITHUB_ENV
 
-      # - name: Monitor Code Review Job Status
-      #   id: monitor_code_review_status
-      #   run: |
-      #     JOB_ID=${{ env.job_id }}
-      #     STATUS="Pending"
-      #     while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
-      #       RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
-      #         --header "Authorization: Bearer ${{ env.access_token }}")
-      #       STATUS=$(echo $RESPONSE | jq -r '.status')
-      #       echo "Current status: $STATUS"
-      #       sleep 10
-      #     done
-      #     echo "Final status: $STATUS"
-      #     OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
+      - name: Monitor Code Review Job Status
+        id: monitor_code_review_status
+        run: |
+          JOB_ID=${{ env.job_id }}
+          STATUS="Pending"
+          while [[ "$STATUS" != "Completed" && "$STATUS" != "CompletedWithErrors" ]]; do
+            RESPONSE=$(curl --location "https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/$JOB_ID/status" \
+              --header "Authorization: Bearer ${{ env.access_token }}")
+            STATUS=$(echo $RESPONSE | jq -r '.status')
+            echo "Current status: $STATUS"
+            sleep 10
+          done
+          echo "Final status: $STATUS"
+          OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
 
-      #     echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
+          echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
 
-      #     {
-      #       echo "output_uris<<EOF"
-      #       echo "$OUTPUT_URIS"
-      #       echo "EOF"
-      #     } >> "$GITHUB_ENV"
+          {
+            echo "output_uris<<EOF"
+            echo "$OUTPUT_URIS"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Prepare and Send for Code Fix
         id: monitor_code_fix_status
