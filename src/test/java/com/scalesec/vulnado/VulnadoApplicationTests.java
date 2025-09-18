@@ -10,8 +10,11 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class VulnadoApplicationTests {
 
 	@Test
-	public void contextLoads() {
+  @Test
+  public void contextLoads() {
 	}
+    // This test method is intentionally left empty to verify that the application context loads successfully.
 
+  }
 }
 
