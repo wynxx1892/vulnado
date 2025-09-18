@@ -225,7 +225,7 @@ jobs:
           RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/review' \
             --header "Authorization: Bearer ${{ env.access_token }}" \
             --form 'RunName="CodeReview"' \
-            --form 'jobName="DemoCodeReviewerGithub"' \
+            --form 'jobName="DemoCodeReviewer"' \
             --form 'PromptId="CodeReviewer__CodeReviewer_V1_Conventions"' \
             --form 'Llm="${{ vars.LLM }}"' \
             --form 'PullRequestId="${{ steps.create-pr.outputs.pull-request-number }}"' \
