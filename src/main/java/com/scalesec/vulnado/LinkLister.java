@@ -3,15 +3,20 @@ package com.scalesec.vulnado;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import java.util.logging.Logger;
 import org.jsoup.select.Elements;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 import java.net.*;
 
+private static final Logger LOGGER = Logger.getLogger(LinkLister.class.getName());
 
+private LinkLister() {
 public class LinkLister {
+    // Prevent instantiation
   public static List<String> getLinks(String url) throws IOException {
+}
     List<String> result = new ArrayList<String>();
     Document doc = Jsoup.connect(url).get();
     Elements links = doc.select("a");
@@ -25,7 +30,7 @@ public class LinkLister {
     try {
       URL aUrl= new URL(url);
       String host = aUrl.getHost();
-      System.out.println(host);
+      LOGGER.info(host);
       if (host.startsWith("172.") || host.startsWith("192.168") || host.startsWith("10.")){
         throw new BadRequest("Use of Private IP");
       } else {
