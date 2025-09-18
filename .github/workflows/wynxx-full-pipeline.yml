@@ -266,7 +266,7 @@ jobs:
           RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/fix' \
             --header 'Authorization: Bearer ${{ env.access_token }}' \
             --form 'RunName="CodeFixer"' \
-            --form 'SastName="wynxx"' \
+            --form 'SastName="Sonar_Cloud"' \
             --form 'jobName="DemoCodeFixer"' \
             --form 'SourceCodeLanguage="Java"' \
             --form 'PromptId="CodeFixer__FixCode_V3"' \
