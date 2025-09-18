@@ -1,20 +1,19 @@
 name: AI Impact Full Pipeline
-​
+
 on:
   workflow_dispatch:
-​
 permissions:
   contents: write
   issues: write
   pull-requests: write
   repository-projects: write
-​
+
 jobs:
   generate_tests:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-​
+
       - name: Authenticate with Keycloak
         id: keycloak_auth
         run: |
@@ -25,27 +24,26 @@ jobs:
             -d "password=${{ secrets.KEYCLOAK_PASS }}" \
             -d "scope=openid" \
             -d "grant_type=password")
-​
+
           ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
-​
+
           if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
             echo "Failed to obtain access token"
             echo "$TOKEN_RESPONSE"
             exit 1
           fi
-​
+
           echo "access_token=$ACCESS_TOKEN" >> $GITHUB_ENV
-      
-​
+
       - name: Checkout the branch
         run: |
           BRANCH_NAME=${{ github.event.pull_request.head.ref }}
           git fetch origin $BRANCH_NAME:$BRANCH_NAME
           git checkout $BRANCH_NAME
-​
+
       - name: Create Classes List
         id: changes
-​
+
         run: |
           java_files=$(find "src/main/java/com/scalesec/vulnado" -type f -name "*.java")          
           JAVA_FILES=()
@@ -61,7 +59,7 @@ jobs:
             printf "%s\n" "${JAVA_FILES[@]}"
             echo "EOF"
           } >> "$GITHUB_ENV"
-​
+
       - name: Prepare and Send to API (TestCreator)
         id: send_api
         run: |
@@ -74,8 +72,7 @@ jobs:
               FILES_ARRAY+=(--form "ExistingTests=@${TEST_FILE}")
             fi
           done <<< "${{ env.java_files }}"
-​
-​
+
           RESPONSE=$(curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/test' \
             --header "Authorization: Bearer ${{ env.access_token }}" \
             --form "RunName=GenerateTests" \
@@ -92,7 +89,7 @@ jobs:
           echo "API Response: $RESPONSE"
           JOB_ID=$(echo $RESPONSE)
           echo "job_id=$JOB_ID" >> $GITHUB_ENV
-​
+
       - name: Monitor Job Status
         id: monitor_status
         run: |
@@ -107,15 +104,15 @@ jobs:
           done
           echo "Final status: $STATUS"
           OUTPUT_URIS=$(echo "$RESPONSE" | jq -r '.results[].output[].uri')
-​
+
           echo "job_response=$RESPONSE" >> "$GITHUB_ENV"
-​
+
           {
             echo "output_uris<<EOF"
             echo "$OUTPUT_URIS"
             echo "EOF"
           } >> "$GITHUB_ENV"
-​
+
 #       - name: Save Generated Tests
 #         run: |
 #           OUTPUT_URIS="${{ env.output_uris }}"
