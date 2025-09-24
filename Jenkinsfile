@@ -185,7 +185,7 @@ pipeline {
                         while (!(status in ['Completed', 'CompletedWithErrors'])) {
                             res = sh(script: """#!/bin/bash
                             set +x
-                            curl --location http://api.gftaiimpact.local:8080/ai/jobs/${JOB_ID}/status \
+                            curl --location https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/${JOB_ID}/status \
                                 --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
                             status = sh(script: "echo '${res}' | jq -r '.status'", returnStdout: true).trim()
                             echo "Current status: ${status}"
