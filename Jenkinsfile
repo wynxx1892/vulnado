@@ -42,6 +42,96 @@ pipeline {
                 }
             }
         }
+        stage('Send to API (TestCreator)') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    def curlArgs = ''
+                    def javaFiles = JAVA_FILES.split("\\s+") as List
+                    echo "Parsed javaFiles: ${javaFiles}"
+
+                    javaFiles.each { file ->
+                        def className = file.tokenize('/')[-1].replace('.java','')
+                        def testFile = "src/test/java/com/scalesec/vulnado/${className}Tests.java"
+
+                        curlArgs += " --form \"files=@${file}\""
+                        if (fileExists(testFile)) {
+                            curlArgs += " --form \"ExistingTests=@${testFile}\""
+                        }
+                    }
+
+                    echo "Generated curlArgs: ${curlArgs}"
+
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        def response = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/test' \
+                                --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+                                ${curlArgs} \
+                                --form "RunName=GenerateTests" \
+                                --form "jobName=DemoTestCreator" \
+                                --form "SearchPattern=*.java" \
+                                --form "TargetExtension=java" \
+                                --form "PromptId=TestCreator__CreateUnitTests_V1" \
+                                --form "SourceCodeLanguage=Java" \
+                                --form "TestType=Unit" \
+                                --form "TestingFrameworks=MSTEST,MOQ" \
+                                --form "Llm=${LLM}" \
+                                --form "AdditionalInstructions=Generate only the source code, without any extra information"
+                        """, returnStdout: true).trim()
+                        echo "API response: ${response}"
+                        JOB_ID = response
+                    }
+                }
+            }
+        }
+
+
+        stage('Monitor Test Job') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    def status = 'Pending'
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        def res = sh(script: """#!/bin/bash
+                        set +x
+                        curl --location https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/${JOB_ID}/status \
+                        --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                        echo "res: $res"
+                        while (!(status in ['Completed', 'CompletedWithErrors'])) {
+                            res = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/${JOB_ID}/status \
+                                --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                            status = sh(script: "echo '${res}' | jq -r '.status'", returnStdout: true).trim()
+                            echo "Current status: ${status}"
+                            sleep time: 10, unit: 'SECONDS'
+                        }
+                        OUTPUT_URIS = sh(script: "echo '${res}' | jq -r '.results[].output[].uri'", returnStdout: true).trim()
+                    }  
+                }
+            }
+        }
+
+        stage('Save Generated Tests') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        OUTPUT_URIS.split('\n').each { uri ->
+                            def className = uri.tokenize('/')[-1].replace('.java','')
+                            def content = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location https://api.aiimpact.qa.az.gcp-gft.cloud${uri} \
+                                --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                            def testFile = "src/test/java/com/scalesec/vulnado/${className}Tests.java"
+                            writeFile file: testFile, text: content
+                        }
+                    }
+                }
+            }
+        }
+
     }
     post {
     always {
