@@ -133,6 +133,91 @@ pipeline {
         }
 
     }
+        stage('Prepare and Send to API (DocCreator)') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    def curlArgs = ''
+                    def javaFiles = JAVA_FILES.split("\\s+") as List
+                    echo "Parsed javaFiles: ${javaFiles}"
+
+                    javaFiles.each { file ->
+                        def className = file.tokenize('/')[-1].replace('.java','')
+                        curlArgs += " --form \"files=@${file}\""
+                    }
+
+                    echo "Generated curlArgs: ${curlArgs}"
+
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        def response = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location 'https://api.aiimpact.qa.az.gcp-gft.cloud/ai/document' \
+                                --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+                                ${curlArgs} \
+                                --form "jobName=DemoDocCreator" \
+                                --form "DocumentationFormat=markdown" \
+                                --form "DiagramFormat=Mermaid" \
+                                --form "SourceCodeLanguage=Java" \
+                                --form "DocumentationAudience=Developer" \
+                                --form "PromptId=DocCreator__DocumentCode_V3" \
+                                --form "TargetExtension=md" \
+                                --form "Llm=${LLM}" \
+                                --form "AdditionalInstructions=Generate all answers in ${LANGUAGE} and If the code have vulnerabilities, describe all in a new vulnerabilities section"
+                                """, returnStdout: true).trim()
+                        echo "API response: ${response}"
+                        JOB_ID = response
+                    } 
+                }
+            }
+        }
+
+        stage('Monitor Doc Job') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    def status = 'Pending'
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        def res = sh(script: """#!/bin/bash 
+                        set +x
+                        curl --location https://api.aiimpact.qa.az.gcp-gft.cloud/ai/jobs/${JOB_ID}/status \
+                                --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                        echo "res: $res"
+                        while (!(status in ['Completed', 'CompletedWithErrors'])) {
+                            res = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location http://api.gftaiimpact.local:8080/ai/jobs/${JOB_ID}/status \
+                                --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                            status = sh(script: "echo '${res}' | jq -r '.status'", returnStdout: true).trim()
+                            echo "Current status: ${status}"
+                            sleep time: 10, unit: 'SECONDS'
+                        }
+                        OUTPUT_URIS = sh(script: "echo '${res}' | jq -r '.results[].output[].uri'", returnStdout: true).trim()
+                    }
+                       
+                }
+            }
+        }
+
+        stage('Save Generated Docs') {
+            steps {
+                script {
+                    def token = readFile('access.token').trim()
+                    withEnv(["ACCESS_TOKEN=${token}"]) {
+                        OUTPUT_URIS.split('\n').each { uri ->
+                            def className = uri.tokenize('/')[-1].replace('.java','')
+                            def content = sh(script: """#!/bin/bash
+                            set +x
+                            curl --location https://api.aiimpact.qa.az.gcp-gft.cloud${uri} \
+                                --header 'Authorization: Bearer ${ACCESS_TOKEN}'""", returnStdout: true).trim()
+                            def docFile = "wiki/src/main/java/com/scalesec/vulnado/${className}Docs.md"
+                            writeFile file: docFile, text: content
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     post {
     always {
         echo 'Pipeline finished.'
