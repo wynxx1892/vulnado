@@ -132,7 +132,7 @@ pipeline {
             }
         }
 
-    }
+    
         stage('Prepare and Send to API (DocCreator)') {
             steps {
                 script {
@@ -216,7 +216,7 @@ pipeline {
                 }
             }
         }
-    
+    }
 
     post {
     always {
