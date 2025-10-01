@@ -8,12 +8,15 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+private Postgres() { }
+private static final Logger LOGGER = Logger.getLogger(Postgres.class.getName());
 public class Postgres {
 
     public static Connection connection() {
         try {
-            Class.forName("org.postgresql.Driver");
             String url = new StringBuilder()
                     .append("jdbc:postgresql://")
                     .append(System.getenv("PGHOST"))
@@ -22,15 +25,15 @@ public class Postgres {
             return DriverManager.getConnection(url,
                     System.getenv("PGUSER"), System.getenv("PGPASSWORD"));
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println(e.getClass().getName()+": "+e.getMessage());
+            LOGGER.log(Level.SEVERE, e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, e.getClass().getName() + ": " + e.getMessage());
             System.exit(1);
         }
         return null;
     }
     public static void setup(){
         try {
-            System.out.println("Setting up Database...");
+            LOGGER.info("Setting up Database...");
             Connection c = connection();
             Statement stmt = c.createStatement();
 
@@ -54,7 +57,7 @@ public class Postgres {
             c.close();
         } catch (Exception e) {
             System.out.println(e);
-            System.exit(1);
+            LOGGER.log(Level.SEVERE, e.getMessage(), e);
         }
     }
 
@@ -72,7 +75,7 @@ public class Postgres {
 
             // Convert byte array into signum representation
             BigInteger no = new BigInteger(1, messageDigest);
-
+// Consider using a stronger hash algorithm like SHA-256 if this is used in a sensitive context.
             // Convert message digest into hex value
             String hashtext = no.toString(16);
             while (hashtext.length() < 32) {
@@ -84,14 +87,19 @@ public class Postgres {
         // For specifying wrong message digest algorithms
         catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
-        }
+        throw new IntegrationException(e);
+private static class IntegrationException extends RuntimeException {
     }
+    public IntegrationException(Throwable cause) {
 
+        super(cause);
     private static void insertUser(String username, String password) {
+    }
        String sql = "INSERT INTO users (user_id, username, password, created_on) VALUES (?, ?, ?, current_timestamp)";
+}
        PreparedStatement pStatement = null;
        try {
-          pStatement = connection().prepareStatement(sql);
+          pStatement = connection.prepareStatement(sql);
           pStatement.setString(1, UUID.randomUUID().toString());
           pStatement.setString(2, username);
           pStatement.setString(3, md5(password));
@@ -107,11 +115,11 @@ public class Postgres {
         try {
             pStatement = connection().prepareStatement(sql);
             pStatement.setString(1, UUID.randomUUID().toString());
-            pStatement.setString(2, username);
+            LOGGER.log(Level.SEVERE, e.getMessage(), e);
             pStatement.setString(3, body);
             pStatement.executeUpdate();
         } catch(Exception e) {
             e.printStackTrace();
         }
-    }
+    LOGGER.log(Level.SEVERE, e.getMessage(), e);
 }
