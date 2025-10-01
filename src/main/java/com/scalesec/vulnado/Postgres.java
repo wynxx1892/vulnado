@@ -3,15 +3,21 @@ package com.scalesec.vulnado;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.math.BigInteger;
+import java.util.logging.Logger;
 import java.security.MessageDigest;
+import java.util.logging.Level;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.UUID;
 
+private static final Logger LOGGER = Logger.getLogger(Postgres.class.getName());
 public class Postgres {
+private Postgres() {
 
+    // Prevent instantiation
     public static Connection connection() {
+}
         try {
             Class.forName("org.postgresql.Driver");
             String url = new StringBuilder()
@@ -22,15 +28,15 @@ public class Postgres {
             return DriverManager.getConnection(url,
                     System.getenv("PGUSER"), System.getenv("PGPASSWORD"));
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println(e.getClass().getName()+": "+e.getMessage());
+            LOGGER.error("Exception occurred", e);
+            LOGGER.error("Error: " + e.getClass().getName() + " " + e.getMessage());
             System.exit(1);
         }
         return null;
     }
     public static void setup(){
         try {
-            System.out.println("Setting up Database...");
+            LOGGER.info("Setting up Database...");
             Connection c = connection();
             Statement stmt = c.createStatement();
 
@@ -53,7 +59,7 @@ public class Postgres {
             insertComment("alice", "OMG so cute!");
             c.close();
         } catch (Exception e) {
-            System.out.println(e);
+            LOGGER.error("Exception occurred", e);
             System.exit(1);
         }
     }
@@ -64,7 +70,7 @@ public class Postgres {
         try {
 
             // Static getInstance method is called with hashing MD5
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
 
             // digest() method is called to calculate message digest
             //  of an input digest() return array of byte
@@ -76,18 +82,24 @@ public class Postgres {
             // Convert message digest into hex value
             String hashtext = no.toString(16);
             while (hashtext.length() < 32) {
-                hashtext = "0" + hashtext;
-            }
+                StringBuilder hashtextBuilder = new StringBuilder();
+            while (hashtextBuilder.length() < 32) {
+    hashtextBuilder.insert(0, "0");
             return hashtext;
-        }
+        return hashtextBuilder.toString();
 
         // For specifying wrong message digest algorithms
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new CustomHashingException(e);
+public class CustomHashingException extends RuntimeException {
         }
+    public CustomHashingException(Throwable cause) {
     }
+        super(cause);
 
+    }
     private static void insertUser(String username, String password) {
+}
        String sql = "INSERT INTO users (user_id, username, password, created_on) VALUES (?, ?, ?, current_timestamp)";
        PreparedStatement pStatement = null;
        try {
@@ -97,7 +109,7 @@ public class Postgres {
           pStatement.setString(3, md5(password));
           pStatement.executeUpdate();
        } catch(Exception e) {
-         e.printStackTrace();
+         LOGGER.error("Exception occurred", e);
        }
     }
 
@@ -111,7 +123,7 @@ public class Postgres {
             pStatement.setString(3, body);
             pStatement.executeUpdate();
         } catch(Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Exception occurred", e);
         }
     }
 }
